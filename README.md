@@ -1,6 +1,6 @@
 # hubjs
 
-Provides loosely coupled sandboxes
+Provides loosely coupled sandboxes for your JavaScript apps.
 
 ```js
 Hub.use(async ({ log, request }) => {
