@@ -1,0 +1,8 @@
+{
+    "number": 42,
+    "string": "The answer",
+    "null": null,
+    "object": {
+        "array": [1, "2", null, 4]
+    }
+}
