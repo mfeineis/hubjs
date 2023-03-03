@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Hub Tests</title>
+    <script src="hub.dev.js"></script>
+    <script src="hub.es5.tests.js"></script>
+    <script src="hub.modern.tests.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        .describe {
+            background-color: lightgray;
+            border: 1px solid grey;
+            font-weight: bold;
+            padding: 0.5rem;
+        }
+        .it {
+            background-color: whitesmoke;
+            border: 1px solid grey;
+            padding: 0.5rem;
+        }
+        .error {
+            background-color: red;
+            border: 1px solid grey;
+            color: white;
+            padding: 0.5rem;
+        }
+
+        .text-danger {
+            color: red;
+        }
+        .text-success{
+            color: green;
+        }
+    </style>
+</head>
+<body>
+    <h1>hubjs</h1>
+    <p>
+        This is hubjs
+    </p>
+    <div id="test-root"></div>
+    <script type="module">
+        const root = document.querySelector("#test-root");
+
+        function write(name, cls) {
+            const entry = document.createElement("div");
+            entry.classList.add(cls);
+            entry.appendChild(document.createTextNode(name));
+            return entry;
+        }
+
+        function describe(name, fn) {
+            const formerParent = describe._parent;
+
+            const entry = write(name, "describe");
+            describe._parent.appendChild(entry);
+            describe._parent = entry;
+            try {
+                fn(describe.it);
+                entry.classList.add("text-success");
+            } catch (ex) {
+                entry.classList.add("text-danger");
+            } finally {
+                describe._parent = formerParent;
+            }
+        }
+        describe.skip = () => {};
+        describe._parent = root;
+
+        describe.it = function it(name, fn) {
+            const formerParent = describe._parent;
+
+            const entry = write(name, "it");
+            describe._parent.appendChild(entry);
+            describe._parent = entry;
+            try {
+                fn();
+                entry.classList.add("text-success");
+            } catch (ex) {
+                const err = write(ex.message, "error");
+                entry.classList.add("text-danger");
+                entry.appendChild(err);
+            } finally {
+                describe._parent = formerParent;
+            }
+        };
+        describe.it.skip = () => {};
+
+        describe.expect = function expect(obj, msg) {
+            return {
+                toBe(expected) {
+                    if (obj !== expected) {
+                        throw new Error(msg ?? `"${obj}" is not "${expected}"`);
+                    }
+                },
+                not: {
+                    toBe(expected) {
+                        if (obj === expected) {
+                            throw new Error(msg ?? `"${obj}" is "${expected}"`);
+                        }
+                    },
+                },
+            };
+        };
+
+        const baseUrl = "./";
+
+        self.Tests.Hub_es5_tests(describe, describe.expect, baseUrl);
+        self.Tests.Hub_modern_tests(describe, describe.expect, baseUrl);
+
+    </script>
+</body>
+</html>
