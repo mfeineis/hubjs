@@ -2,6 +2,13 @@
 /*! Hub v0.1.0 https://www.github.com/mfeineis/hubjs */
 /// Changelog
 /// =========
+/// * v0.1.1
+///     - AbortSignal support for `request` - see https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal
+///     - Don't set JSON request headers when `SandboxRequestOptions.body` is `null`
+///     - Fixed TypeScript interface for `Hub.log`, now returns the proper `LogHost`
+///     - Fixed `Hub.d.ts` style issues
+///     - Introduce `callbag` extension - see https://github.com/callbag/callbag
+///     - Subscriptions are now handled via Callbags - 
 /// * v0.1.0
 ///     - Created GitHub repository for the library
 ///     - Moved TODO/FIXME to hubjs GitHub project for later consideration
@@ -138,7 +145,7 @@
 
 }, [
 /**
- * @param {any} sandboxApi
+ * @param {(name: string, obj: any) => void} sandboxApi
  * @param {HubSandbox} Y
  * @summary Browser implementation of the pubsub extension via `window.postMessage`.
  */
@@ -188,23 +195,43 @@ function pubsubPostMessageExtension(sandboxApi, Y) {
         });
     }
 
-    function subscribe(channel, fn) {
+    function subscribe(channel, feed) {
         if (!listeners[channel]) {
             listeners[channel] = [];
         }
-        listeners[channel].push(fn);
-        return function unsubscribe() {
+
+        let fn = null;
+
+        function unsubscribe() {
             listeners[channel] = listeners[channel].filter(function (it) {
                 return it !== fn;
             });
-        };
+        }
+
+        feed(function (start, sink) {
+            if (start !== 0) {
+                return;
+            }
+            fn = function (data) {
+                sink(1, data);
+            };
+            listeners[channel].push(fn);
+
+            sink(0, function (t) {
+                if (t === 2) {
+                    unsubscribe();
+                }
+            });
+        });
+
+        return unsubscribe;
     }
 
 },
 /**
- * @param {any} sandboxApi
+ * @param {(name: string, obj: any) => void} sandboxApi
  * @param {HubSandbox} Y
- * @param {any} staticApi
+ * @param {(name: string, obj: any) => void} staticApi
  * @summary Browser implementation of the logging extension.
  */
 function loggingExtension(sandboxApi, Y, staticApi) {
@@ -236,7 +263,7 @@ function loggingExtension(sandboxApi, Y, staticApi) {
 
 },
 /**
- * @param {any} sandboxApi
+ * @param {(name: string, obj: any) => void} sandboxApi
  * @param {HubSandbox} Y
  * @summary Browser implementation of the JSON extension.
  * @description Right now this is just a thin wrapper for the awkward but standard JSON API.
@@ -256,7 +283,32 @@ function jsonExtension(sandboxApi, Y) {
     }
 },
 /**
- * @param {any} sandboxApi
+ * @param {(name: string, obj: any) => void} sandboxApi
+ * @summary Callbag compatible utility functions to use with subscriptions.
+ * @see https://github.com/callbag/callbag
+ */
+function callbagExtension(sandboxApi) {
+    sandboxApi("forEach", forEach);
+
+    function forEach(operation) {
+        return function (source) {
+            let talkback;
+            source(0, function (t, d) {
+                if (t === 0) {
+                    talkback = d;
+                }
+                if (t === 1) {
+                    operation(d);
+                }
+                if (t === 1 || t === 0) {
+                    talkback(1);
+                }
+            });
+        };
+    }
+},
+/**
+ * @param {(name: string, obj: any) => void} sandboxApi
  * @param {HubSandbox} Y
  * @summary Browser implementation of the request extension via `XMLHttpRequest`.
  */
@@ -266,6 +318,7 @@ function requestViaXHRExtension(sandboxApi, Y, _, undefined) {
 
     const window = Y.env.window;
     const log = Y.log;
+    const forEach = Y.forEach;
 
     function noop() {}
 
@@ -289,6 +342,7 @@ function requestViaXHRExtension(sandboxApi, Y, _, undefined) {
         const params = options.params || {};
         // options.responseType is "text" by default per spec
         const responseType = options.responseType || "";
+        const signal = options.signal || null;
         // options.sync is not part of the published API but it is convenient
         // for testing so it works for this implementation without official support
         const sync = Boolean((options.__UNOFFICIAL_DO_NOT_USE__ || {}).sync);
@@ -393,6 +447,15 @@ function requestViaXHRExtension(sandboxApi, Y, _, undefined) {
             listeners = null;
         });
 
+        if (signal) {
+            signal.addEventListener("abort", function listener() {
+                if (xhr) {
+                    xhr.abort();
+                }
+                signal.removeEventListener("abort", listener);
+            });
+        }
+
         if (!sync) {
             // Timeout is only supported with async requests
             xhr.timeout = timeout;
@@ -424,7 +487,7 @@ function requestViaXHRExtension(sandboxApi, Y, _, undefined) {
                     // Per fetch spec these are allowed and `XMLHttpRequest` as
                     // well as `fetch` know what to do with these without an
                     // explicit "Content-Type"
-                } else if (typeof body === "object") {
+                } else if (typeof body === "object" && body !== null) {
                     // Sending JSON is such a ubiquitous usecase that setting
                     // a sensible default "Content-Type" is a no-brainer
                     xhr.setRequestHeader(
@@ -446,42 +509,47 @@ function requestViaXHRExtension(sandboxApi, Y, _, undefined) {
         api["then"] = function then(onfulfilled, onrejected) {
             let disposeAsap = false;
             let dispose;
-            dispose = api.subscribe(function (pair) {
-                const ev = pair[0];
-                const unsafe = pair[1];
-                const safe = unsafe || {};
-                switch (ev) {
-                    case "abort":
-                        onrejected(safe.error || new Error("hub.request:abort"));
-                        break;
-                    case "complete":
-                        // In sync mode cleanup might not be available yet
-                        if (dispose) {
-                            dispose();
-                        } else {
-                            disposeAsap = true;
-                        }
-                        break;
-                    case "error":
-                        onrejected(safe.error || new Error("hub.request:error"));
-                        break;
-                    case "progress":
-                        // Can't report progress for a PromiseLike<T>
-                        break;
-                    case "ok":
-                        onfulfilled(unsafe);
-                        break;
-                    case "timeout":
-                        onrejected(safe.error || new Error("hub.request:timeout"));
-                        break;
-                }
-            });
+            dispose = api.subscribe(
+                forEach(function (pair) {
+                    const ev = pair[0];
+                    const unsafe = pair[1];
+                    const safe = unsafe || {};
+                    switch (ev) {
+                        case "abort":
+                            onrejected(safe.error || new Error("hub.request:abort"));
+                            break;
+                        case "complete":
+                            // In sync mode cleanup might not be available yet
+                            if (dispose) {
+                                dispose();
+                            } else {
+                                disposeAsap = true;
+                            }
+                            break;
+                        case "error":
+                            onrejected(safe.error || new Error("hub.request:error"));
+                            break;
+                        case "progress":
+                            // Can't report progress for a PromiseLike<T>
+                            break;
+                        case "ok":
+                            onfulfilled(unsafe);
+                            break;
+                        case "timeout":
+                            onrejected(safe.error || new Error("hub.request:timeout"));
+                            break;
+                    }
+                })
+            );
             if (disposeAsap) {
                 dispose();
             }
         };
+
         // This is a hot subscription, the request is initiated immediately
-        api["subscribe"] = function subscribe(fn) {
+        api["subscribe"] = function subscribe(feed) {
+            let fn = null;
+
             function finalize() {
                 const error = determineError();
                 pump(fn, [error ? "error" : "ok", {
@@ -491,23 +559,42 @@ function requestViaXHRExtension(sandboxApi, Y, _, undefined) {
                 }]);
             }
 
-            if (isDone) {
-                finalize();
-                return noop;
-            }
-            listeners.push(fn);
-
-            if (!hasBeenSent) {
-                try {
-                    xhr.send(body);
-                    hasBeenSent = true;
-                } catch (e) {
-                    sendError = e;
-                    finalize();
+            feed(function (start, sink) {
+                if (start !== 0) {
+                    return;
                 }
-            }
+
+                fn = function (data) {
+                    sink(1, data);
+                };
+
+                sink(0, function (t) {
+                    if (t === 2) {
+                        if (xhr) {
+                            xhr.abort();
+                        }
+                    }
+                });
+
+                if (isDone) {
+                    finalize();
+                    return noop;
+                }
+                listeners.push(fn);
+
+                if (!hasBeenSent) {
+                    try {
+                        xhr.send(body);
+                        hasBeenSent = true;
+                    } catch (e) {
+                        sendError = e;
+                        finalize();
+                    }
+                }
+            });
+
             return function unsubscribe() {
-                if (listeners) {
+                if (fn && listeners) {
                     listeners = listeners.filter(function (it) {
                         return it !== fn;
                     });

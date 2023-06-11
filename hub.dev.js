@@ -1,7 +1,14 @@
 /* global define, module */
-/*! Hub v0.1.0 https://www.github.com/mfeineis/hubjs */
+/*! Hub v0.1.1 https://www.github.com/mfeineis/hubjs */
 /// Changelog
 /// =========
+/// * v0.1.1
+///     - AbortSignal support for `request` - see https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal
+///     - Don't set JSON request headers when `SandboxRequestOptions.body` is `null`
+///     - Fixed TypeScript interface for `Hub.log`, now returns the proper `LogHost`
+///     - Fixed `Hub.d.ts` style issues
+///     - Introduced `callbag` extension - see https://github.com/callbag/callbag
+///     - Subscriptions in `request` and `pubsub` now use a callbag-based API
 /// * v0.1.0
 ///     - Created GitHub repository for the library
 ///     - Moved TODO/FIXME to hubjs GitHub project for later consideration
@@ -207,7 +214,7 @@ function pubsubPostMessageExtension(sandboxApi, Y) {
             }
             fn = function (data) {
                 sink(1, data);
-        };
+            };
             listeners[channel].push(fn);
 
             sink(0, function (t) {
@@ -504,34 +511,34 @@ function requestViaXHRExtension(sandboxApi, Y, _, undefined) {
             let dispose;
             dispose = api.subscribe(
                 forEach(function (pair) {
-                const ev = pair[0];
-                const unsafe = pair[1];
-                const safe = unsafe || {};
-                switch (ev) {
-                    case "abort":
-                        onrejected(safe.error || new Error("hub.request:abort"));
-                        break;
-                    case "complete":
-                        // In sync mode cleanup might not be available yet
-                        if (dispose) {
-                            dispose();
-                        } else {
-                            disposeAsap = true;
-                        }
-                        break;
-                    case "error":
-                        onrejected(safe.error || new Error("hub.request:error"));
-                        break;
-                    case "progress":
-                        // Can't report progress for a PromiseLike<T>
-                        break;
-                    case "ok":
-                        onfulfilled(unsafe);
-                        break;
-                    case "timeout":
-                        onrejected(safe.error || new Error("hub.request:timeout"));
-                        break;
-                }
+                    const ev = pair[0];
+                    const unsafe = pair[1];
+                    const safe = unsafe || {};
+                    switch (ev) {
+                        case "abort":
+                            onrejected(safe.error || new Error("hub.request:abort"));
+                            break;
+                        case "complete":
+                            // In sync mode cleanup might not be available yet
+                            if (dispose) {
+                                dispose();
+                            } else {
+                                disposeAsap = true;
+                            }
+                            break;
+                        case "error":
+                            onrejected(safe.error || new Error("hub.request:error"));
+                            break;
+                        case "progress":
+                            // Can't report progress for a PromiseLike<T>
+                            break;
+                        case "ok":
+                            onfulfilled(unsafe);
+                            break;
+                        case "timeout":
+                            onrejected(safe.error || new Error("hub.request:timeout"));
+                            break;
+                    }
                 })
             );
             if (disposeAsap) {
@@ -569,21 +576,21 @@ function requestViaXHRExtension(sandboxApi, Y, _, undefined) {
                     }
                 });
 
-            if (isDone) {
-                finalize();
-                return noop;
-            }
-            listeners.push(fn);
-
-            if (!hasBeenSent) {
-                try {
-                    xhr.send(body);
-                    hasBeenSent = true;
-                } catch (e) {
-                    sendError = e;
+                if (isDone) {
                     finalize();
+                    return noop;
                 }
-            }
+                listeners.push(fn);
+
+                if (!hasBeenSent) {
+                    try {
+                        xhr.send(body);
+                        hasBeenSent = true;
+                    } catch (e) {
+                        sendError = e;
+                        finalize();
+                    }
+                }
             });
 
             return function unsubscribe() {
