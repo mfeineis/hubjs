@@ -434,7 +434,7 @@ function requestViaXHRExtension(sandboxApi, Y, _, undefined) {
                     // Per fetch spec these are allowed and `XMLHttpRequest` as
                     // well as `fetch` know what to do with these without an
                     // explicit "Content-Type"
-                } else if (typeof body === "object") {
+                } else if (typeof body === "object" && body !== null) {
                     // Sending JSON is such a ubiquitous usecase that setting
                     // a sensible default "Content-Type" is a no-brainer
                     xhr.setRequestHeader(
