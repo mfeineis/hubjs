@@ -188,16 +188,36 @@ function pubsubPostMessageExtension(sandboxApi, Y) {
         });
     }
 
-    function subscribe(channel, fn) {
+    function subscribe(channel, feed) {
         if (!listeners[channel]) {
             listeners[channel] = [];
         }
-        listeners[channel].push(fn);
-        return function unsubscribe() {
+
+        let fn = null;
+
+        function unsubscribe() {
             listeners[channel] = listeners[channel].filter(function (it) {
                 return it !== fn;
             });
+        }
+
+        feed(function (start, sink) {
+            if (start !== 0) {
+                return;
+            }
+            fn = function (data) {
+                sink(1, data);
         };
+            listeners[channel].push(fn);
+
+            sink(0, function (t) {
+                if (t === 2) {
+                    unsubscribe();
+                }
+            });
+        });
+
+        return unsubscribe;
     }
 
 },
@@ -291,6 +311,7 @@ function requestViaXHRExtension(sandboxApi, Y, _, undefined) {
 
     const window = Y.env.window;
     const log = Y.log;
+    const forEach = Y.forEach;
 
     function noop() {}
 
@@ -481,7 +502,8 @@ function requestViaXHRExtension(sandboxApi, Y, _, undefined) {
         api["then"] = function then(onfulfilled, onrejected) {
             let disposeAsap = false;
             let dispose;
-            dispose = api.subscribe(function (pair) {
+            dispose = api.subscribe(
+                forEach(function (pair) {
                 const ev = pair[0];
                 const unsafe = pair[1];
                 const safe = unsafe || {};
@@ -510,13 +532,17 @@ function requestViaXHRExtension(sandboxApi, Y, _, undefined) {
                         onrejected(safe.error || new Error("hub.request:timeout"));
                         break;
                 }
-            });
+                })
+            );
             if (disposeAsap) {
                 dispose();
             }
         };
+
         // This is a hot subscription, the request is initiated immediately
-        api["subscribe"] = function subscribe(fn) {
+        api["subscribe"] = function subscribe(feed) {
+            let fn = null;
+
             function finalize() {
                 const error = determineError();
                 pump(fn, [error ? "error" : "ok", {
@@ -525,6 +551,23 @@ function requestViaXHRExtension(sandboxApi, Y, _, undefined) {
                     status: xhr ? xhr.status : null,
                 }]);
             }
+
+            feed(function (start, sink) {
+                if (start !== 0) {
+                    return;
+                }
+
+                fn = function (data) {
+                    sink(1, data);
+                };
+
+                sink(0, function (t) {
+                    if (t === 2) {
+                        if (xhr) {
+                            xhr.abort();
+                        }
+                    }
+                });
 
             if (isDone) {
                 finalize();
@@ -541,8 +584,10 @@ function requestViaXHRExtension(sandboxApi, Y, _, undefined) {
                     finalize();
                 }
             }
+            });
+
             return function unsubscribe() {
-                if (listeners) {
+                if (fn && listeners) {
                     listeners = listeners.filter(function (it) {
                         return it !== fn;
                     });
