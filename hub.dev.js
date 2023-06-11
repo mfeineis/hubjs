@@ -256,7 +256,32 @@ function jsonExtension(sandboxApi, Y) {
     }
 },
 /**
- * @param {any} sandboxApi
+ * @param {(name: string, obj: any) => void} sandboxApi
+ * @summary Callbag compatible utility functions to use with subscriptions.
+ * @see https://github.com/callbag/callbag
+ */
+function callbagExtension(sandboxApi) {
+    sandboxApi("forEach", forEach);
+
+    function forEach(operation) {
+        return function (source) {
+            let talkback;
+            source(0, function (t, d) {
+                if (t === 0) {
+                    talkback = d;
+                }
+                if (t === 1) {
+                    operation(d);
+                }
+                if (t === 1 || t === 0) {
+                    talkback(1);
+                }
+            });
+        };
+    }
+},
+/**
+ * @param {(name: string, obj: any) => void} sandboxApi
  * @param {HubSandbox} Y
  * @summary Browser implementation of the request extension via `XMLHttpRequest`.
  */
