@@ -138,7 +138,7 @@
 
 }, [
 /**
- * @param {any} sandboxApi
+ * @param {(name: string, obj: any) => void} sandboxApi
  * @param {HubSandbox} Y
  * @summary Browser implementation of the pubsub extension via `window.postMessage`.
  */
@@ -202,9 +202,9 @@ function pubsubPostMessageExtension(sandboxApi, Y) {
 
 },
 /**
- * @param {any} sandboxApi
+ * @param {(name: string, obj: any) => void} sandboxApi
  * @param {HubSandbox} Y
- * @param {any} staticApi
+ * @param {(name: string, obj: any) => void} staticApi
  * @summary Browser implementation of the logging extension.
  */
 function loggingExtension(sandboxApi, Y, staticApi) {
@@ -236,7 +236,7 @@ function loggingExtension(sandboxApi, Y, staticApi) {
 
 },
 /**
- * @param {any} sandboxApi
+ * @param {(name: string, obj: any) => void} sandboxApi
  * @param {HubSandbox} Y
  * @summary Browser implementation of the JSON extension.
  * @description Right now this is just a thin wrapper for the awkward but standard JSON API.
