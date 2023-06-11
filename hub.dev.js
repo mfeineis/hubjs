@@ -289,6 +289,7 @@ function requestViaXHRExtension(sandboxApi, Y, _, undefined) {
         const params = options.params || {};
         // options.responseType is "text" by default per spec
         const responseType = options.responseType || "";
+        const signal = options.signal || null;
         // options.sync is not part of the published API but it is convenient
         // for testing so it works for this implementation without official support
         const sync = Boolean((options.__UNOFFICIAL_DO_NOT_USE__ || {}).sync);
@@ -392,6 +393,15 @@ function requestViaXHRExtension(sandboxApi, Y, _, undefined) {
             xhr = null;
             listeners = null;
         });
+
+        if (signal) {
+            signal.addEventListener("abort", function listener() {
+                if (xhr) {
+                    xhr.abort();
+                }
+                signal.removeEventListener("abort", listener);
+            });
+        }
 
         if (!sync) {
             // Timeout is only supported with async requests
