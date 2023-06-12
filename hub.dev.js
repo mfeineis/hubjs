@@ -570,9 +570,7 @@ function requestViaXHRExtension(sandboxApi, Y, _, undefined) {
 
                 sink(0, function (t) {
                     if (t === 2) {
-                        if (xhr) {
-                            xhr.abort();
-                        }
+                        unsubscribe();
                     }
                 });
 
