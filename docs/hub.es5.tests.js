@@ -132,7 +132,8 @@ function Hub_es5_tests(describe, expect, baseUrl) {
             const req = Y.request(mapFileUrl("fixtures/plaintext.txt"));
 
             let step = 0;
-            const unsubscribe = req.subscribe(Y.forEach(function (pair) {
+            const sub = req.subscribe();
+            Y.forEach(function (pair) {
                 step += 1;
 
                 const ev = pair[0];
@@ -167,9 +168,10 @@ function Hub_es5_tests(describe, expect, baseUrl) {
                     default:
                         throw new Error("There should be exactly 3 steps");
                 }
-            }));
+            })(sub);
 
-            expect(typeof unsubscribe).toBe("function");
+            expect(typeof sub.unsubscribe).toBe("function");
+            sub.unsubscribe();
         });
         it.skip("[UNOFFICIAL sync] should request text by default", () => {
             const Y = createSandbox();
@@ -181,7 +183,8 @@ function Hub_es5_tests(describe, expect, baseUrl) {
             });
 
             let step = 0;
-            const unsubscribe = req.subscribe(Y.forEach(function (pair) {
+            const sub = req.subscribe();
+            Y.forEach(function (pair) {
                 step += 1;
 
                 const ev = pair[0];
@@ -205,10 +208,10 @@ function Hub_es5_tests(describe, expect, baseUrl) {
                     default:
                         throw new Error("There should be exactly 2 steps");
                 }
-            }));
+            })(sub);
 
-            expect(typeof unsubscribe).toBe("function");
-            unsubscribe();
+            expect(typeof sub.unsubscribe).toBe("function");
+            sub.unsubscribe();
         });
         it("should support requesting json", () => {
             const Y = createSandbox();
@@ -216,7 +219,8 @@ function Hub_es5_tests(describe, expect, baseUrl) {
             const req = Y.request.json(mapFileUrl("fixtures/jsontext.json"));
 
             let step = 0;
-            const unsubscribe = req.subscribe(Y.forEach(function (pair) {
+            const sub = req.subscribe();
+            Y.forEach(function (pair) {
                 step += 1;
 
                 const ev = pair[0];
@@ -255,9 +259,10 @@ function Hub_es5_tests(describe, expect, baseUrl) {
                     default:
                         throw new Error("There should be exactly 3 steps");
                 }
-            }));
+            })(sub);
 
-            expect(typeof unsubscribe).toBe("function");
+            expect(typeof sub.unsubscribe).toBe("function");
+            sub.unsubscribe();
         });
     });
 }

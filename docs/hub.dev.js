@@ -195,7 +195,7 @@ function pubsubPostMessageExtension(sandboxApi, Y) {
         });
     }
 
-    function subscribe(channel, feed) {
+    function subscribe(channel) {
         if (!listeners[channel]) {
             listeners[channel] = [];
         }
@@ -208,7 +208,7 @@ function pubsubPostMessageExtension(sandboxApi, Y) {
             });
         }
 
-        feed(function (start, sink) {
+        function sub(start, sink) {
             if (start !== 0) {
                 return;
             }
@@ -222,9 +222,10 @@ function pubsubPostMessageExtension(sandboxApi, Y) {
                     unsubscribe();
                 }
             });
-        });
+        }
+        sub.unsubscribe = unsubscribe;
 
-        return unsubscribe;
+        return sub;
     }
 
 },
@@ -507,47 +508,36 @@ function requestViaXHRExtension(sandboxApi, Y, _, undefined) {
         const api = {};
         // Our API is a [[Thenable]] so it can be `await`-ed
         api["then"] = function then(onfulfilled, onrejected) {
-            let disposeAsap = false;
-            let dispose;
-            dispose = api.subscribe(
-                forEach(function (pair) {
-                    const ev = pair[0];
-                    const unsafe = pair[1];
-                    const safe = unsafe || {};
-                    switch (ev) {
-                        case "abort":
-                            onrejected(safe.error || new Error("hub.request:abort"));
-                            break;
-                        case "complete":
-                            // In sync mode cleanup might not be available yet
-                            if (dispose) {
-                                dispose();
-                            } else {
-                                disposeAsap = true;
-                            }
-                            break;
-                        case "error":
-                            onrejected(safe.error || new Error("hub.request:error"));
-                            break;
-                        case "progress":
-                            // Can't report progress for a PromiseLike<T>
-                            break;
-                        case "ok":
-                            onfulfilled(unsafe);
-                            break;
-                        case "timeout":
-                            onrejected(safe.error || new Error("hub.request:timeout"));
-                            break;
-                    }
-                })
-            );
-            if (disposeAsap) {
-                dispose();
-            }
+            const sub = api.subscribe();
+            forEach(function (pair) {
+                const ev = pair[0];
+                const unsafe = pair[1];
+                const safe = unsafe || {};
+                switch (ev) {
+                    case "abort":
+                        onrejected(safe.error || new Error("hub.request:abort"));
+                        break;
+                    case "complete":
+                        sub.unsubscribe();
+                        break;
+                    case "error":
+                        onrejected(safe.error || new Error("hub.request:error"));
+                        break;
+                    case "progress":
+                        // Can't report progress for a PromiseLike<T>
+                        break;
+                    case "ok":
+                        onfulfilled(unsafe);
+                        break;
+                    case "timeout":
+                        onrejected(safe.error || new Error("hub.request:timeout"));
+                        break;
+                }
+            })(sub);
         };
 
         // This is a hot subscription, the request is initiated immediately
-        api["subscribe"] = function subscribe(feed) {
+        api["subscribe"] = function subscribe() {
             let fn = null;
 
             function finalize() {
@@ -559,7 +549,21 @@ function requestViaXHRExtension(sandboxApi, Y, _, undefined) {
                 }]);
             }
 
-            feed(function (start, sink) {
+            function unsubscribe() {
+                if (fn && listeners) {
+                    listeners = listeners.filter(function (it) {
+                        return it !== fn;
+                    });
+                }
+                if (!xhr) {
+                    return;
+                }
+                if (listeners && listeners.length === 0) {
+                    xhr.abort();
+                }
+            }
+
+            function sub(start, sink) {
                 if (start !== 0) {
                     return;
                 }
@@ -589,21 +593,10 @@ function requestViaXHRExtension(sandboxApi, Y, _, undefined) {
                         finalize();
                     }
                 }
-            });
+            }
+            sub.unsubscribe = unsubscribe;
 
-            return function unsubscribe() {
-                if (fn && listeners) {
-                    listeners = listeners.filter(function (it) {
-                        return it !== fn;
-                    });
-                }
-                if (!xhr) {
-                    return;
-                }
-                if (listeners && listeners.length === 0) {
-                    xhr.abort();
-                }
-            };
+            return sub;
         };
 
         return Object.freeze(api);
