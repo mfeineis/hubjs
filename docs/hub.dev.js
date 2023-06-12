@@ -1,5 +1,5 @@
 /* global define, module */
-/*! Hub v0.1.0 https://www.github.com/mfeineis/hubjs */
+/*! Hub v0.1.1 https://www.github.com/mfeineis/hubjs */
 /// Changelog
 /// =========
 /// * v0.1.1
@@ -7,8 +7,8 @@
 ///     - Don't set JSON request headers when `SandboxRequestOptions.body` is `null`
 ///     - Fixed TypeScript interface for `Hub.log`, now returns the proper `LogHost`
 ///     - Fixed `Hub.d.ts` style issues
-///     - Introduce `callbag` extension - see https://github.com/callbag/callbag
-///     - Subscriptions are now handled via Callbags - 
+///     - Introduced `callbag` extension - see https://github.com/callbag/callbag
+///     - Subscriptions in `request` and `pubsub` now use a callbag-based API
 /// * v0.1.0
 ///     - Created GitHub repository for the library
 ///     - Moved TODO/FIXME to hubjs GitHub project for later consideration
