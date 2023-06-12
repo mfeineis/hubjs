@@ -5,7 +5,7 @@ interface LogHost {
 }
 
 interface ColdCallbagSubscription<T = unknown> {
-    (start: 0 | 1 | 2, sink: Sink<T>): void;
+    (start: START | DATA | END, sink: Sink<T>): void;
     unsubscribe: () => void;
 }
 
