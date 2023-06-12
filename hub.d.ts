@@ -4,8 +4,9 @@ interface LogHost {
     readonly error: (...args: unknown[]) => void;
 }
 
-interface Unsubscribe {
-    (): void;
+interface ColdCallbagSubscription<T = unknown> {
+    (start: 0 | 1 | 2, sink: Sink<T>): void;
+    unsubscribe: () => void;
 }
 
 // Note that our `request` options are intentionally leaner
@@ -36,7 +37,7 @@ interface SandboxRequestProgress<T> {
 interface SandboxRequestResponse<T> extends SandboxRequestProgress<T> {
 }
 interface SandboxRequest<T> extends Thenable<T> {
-    subscribe(sink: Sink<[name: SandboxRequestEvent, evt: SandboxRequestProgress<T>]>): Unsubscribe;
+    subscribe(): ColdCallbagSubscription<[name: SandboxRequestEvent, evt: SandboxRequestProgress<T>]>;
 
     // Our API is a [[Thenable]] so it can be `await`-ed
     // a.k.a. PromiseLike<T>
@@ -60,7 +61,7 @@ interface HubSandbox {
 
     // PubSub
     readonly publish: <T = unknown>(channel: unknown, data?: T) => void;
-    readonly subscribe: <T = unknown>(channel: unknown, sink: Sink<T>) => Unsubscribe;
+    readonly subscribe: <T = unknown>(channel: unknown) => ColdCallbagSubscription<T>;
 
     // Request
     readonly request: {
