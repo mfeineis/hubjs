@@ -1,7 +1,10 @@
 /* global define, module */
-/*! Hub v0.1.1 https://www.github.com/mfeineis/hubjs */
+/*! Hub v0.1.2 https://www.github.com/mfeineis/hubjs */
 /// Changelog
 /// =========
+/// * v0.1.2
+///     - Fixed bug in `request` where early return from subscription would yield a "noop" function
+///     - Fixed docs for `request` subscription
 /// * v0.1.1
 ///     - AbortSignal support for `request` - see https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal
 ///     - Don't set JSON request headers when `SandboxRequestOptions.body` is `null`
@@ -321,8 +324,6 @@ function requestViaXHRExtension(sandboxApi, Y, _, undefined) {
     const log = Y.log;
     const forEach = Y.forEach;
 
-    function noop() {}
-
     function mix(to) {
         const len = arguments.length;
         for (let i = 1; i < len; i += 1) {
@@ -536,7 +537,7 @@ function requestViaXHRExtension(sandboxApi, Y, _, undefined) {
             })(sub);
         };
 
-        // This is a hot subscription, the request is initiated immediately
+        // This returns a cold subscription, the request is initiated on demand
         api["subscribe"] = function subscribe() {
             let fn = null;
 
@@ -580,7 +581,7 @@ function requestViaXHRExtension(sandboxApi, Y, _, undefined) {
 
                 if (isDone) {
                     finalize();
-                    return noop;
+                    return;
                 }
                 listeners.push(fn);
 
