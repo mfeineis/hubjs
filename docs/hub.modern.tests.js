@@ -27,7 +27,7 @@ function Hub_modern_tests(describe, expect, baseUrl) {
         it("should be usable with 'await' because it returns a [[Thenable]]", async () => {
             const { request } = createSandbox();
 
-            const res = await request(mapFileUrl("fixtures/plaintext.txt"));
+            const res = await request.text(mapFileUrl("fixtures/plaintext.txt"));
             expect(typeof res.error).toBe("undefined");
             expect(res.ok).toBe(true);
             expect(res.response).toBe("A plain text file\n");
@@ -36,7 +36,7 @@ function Hub_modern_tests(describe, expect, baseUrl) {
         it("should be able to 'await' json requests", async () => {
             const { request, toJson } = createSandbox();
 
-            const res = await request.json(mapFileUrl("fixtures/jsontext.json"));
+            const res = await request(mapFileUrl("fixtures/jsontext.json"));
             expect(typeof res.error).toBe("undefined");
             expect(res.ok).toBe(true);
             expect(toJson(res.response)).toBe('{"number":42,"string":"The answer","null":null,"object":{"array":[1,"2",null,4]}}');
@@ -47,7 +47,7 @@ function Hub_modern_tests(describe, expect, baseUrl) {
             const { request } = createSandbox();
 
             try {
-                await request(mapFileUrl("fixtures/__404__.txt"));
+                await request.text(mapFileUrl("fixtures/__404__.txt"));
                 throw new Error("This request should not succeed");
             } catch (e) {
                 expect(typeof e).not.toBe("undefined");
@@ -55,10 +55,10 @@ function Hub_modern_tests(describe, expect, baseUrl) {
                 //expect(e.status).toBe(404);
             }
         });
-        it.skip("[UNOFFICIAL sync] should be usable with 'await' because it returns a [[Thenable]]", async () => {
+        it("[UNOFFICIAL sync] should be usable with 'await' because it returns a [[Thenable]]", async () => {
             const { request } = createSandbox();
 
-            const res = await request(mapFileUrl("fixtures/plaintext.txt"), {
+            const res = await request.text(mapFileUrl("fixtures/plaintext.txt"), {
                 __UNOFFICIAL_DO_NOT_USE__: {
                     sync: true,
                 },

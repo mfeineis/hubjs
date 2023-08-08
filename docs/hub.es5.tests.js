@@ -107,7 +107,7 @@ function Hub_es5_tests(describe, expect, baseUrl) {
             const sandbox = createSandbox();
 
             expect(typeof sandbox.request).toBe("function");
-            expect(typeof sandbox.request.json).toBe("function");
+            expect(typeof sandbox.request.text).toBe("function");
         });
     });
 
@@ -116,107 +116,20 @@ function Hub_es5_tests(describe, expect, baseUrl) {
             const Y = createSandbox();
 
             expect(typeof Y.request).toBe("function");
-            expect(typeof Y.request.json).toBe("function");
+            expect(typeof Y.request.text).toBe("function");
         });
         it("should return a [[Thenable]] handle that also has a 'subscribe' method", () => {
             const Y = createSandbox();
 
-            const req = Y.request(mapFileUrl("fixtures/plaintext.txt"));
+            const req = Y.request(mapFileUrl("fixtures/jsontext.json"));
 
             expect(typeof req.subscribe).toBe("function");
             expect(typeof req.then).toBe("function");
         });
-        it("should request text by default", () => {
+        it("should request json by default", () => {
             const Y = createSandbox();
 
-            const req = Y.request(mapFileUrl("fixtures/plaintext.txt"));
-
-            let step = 0;
-            const sub = req.subscribe();
-            Y.forEach(function (pair) {
-                step += 1;
-
-                const ev = pair[0];
-                const data = pair[1];
-
-                if (step === 1 && ev === "ok") {
-                    // xhr polyfill in Deno doesn't trigger "progress" events
-                    step = 2;
-                }
-
-                switch (step) {
-                    case 1:
-                        expect(ev).toBe("progress");
-                        expect(typeof data.error).toBe("undefined");
-                        expect(data.indeterminate).toBe(undefined);
-                        expect(data.progress).toBe(100);
-                        break;
-                    case 2:
-                        expect(ev).toBe("ok");
-                        expect(typeof data.error).toBe("undefined");
-                        expect(data.ok).toBe(true);
-                        expect(data.response).toBe("A plain text file\n");
-                        expect(data.status).toBe(200);
-                        break;
-                    case 3:
-                        expect(ev).toBe("complete");
-                        expect(typeof data.error).toBe("undefined");
-                        expect(data.ok).toBe(true);
-                        expect(data.loaded).toBe(18);
-                        expect(data.status).toBe(200);
-                        break;
-                    default:
-                        throw new Error("There should be exactly 3 steps");
-                }
-            })(sub);
-
-            expect(typeof sub.unsubscribe).toBe("function");
-            sub.unsubscribe();
-        });
-        it.skip("[UNOFFICIAL sync] should request text by default", () => {
-            const Y = createSandbox();
-
-            const req = Y.request(mapFileUrl("fixtures/plaintext.txt"), {
-                __UNOFFICIAL_DO_NOT_USE__: {
-                    sync: true,
-                },
-            });
-
-            let step = 0;
-            const sub = req.subscribe();
-            Y.forEach(function (pair) {
-                step += 1;
-
-                const ev = pair[0];
-                const data = pair[1];
-
-                switch (step) {
-                    case 1:
-                        expect(ev).toBe("ok");
-                        expect(typeof data.error).toBe("undefined");
-                        expect(data.ok).toBe(true);
-                        expect(data.response).toBe("A plain text file\n");
-                        expect(data.status).toBe(200);
-                        break;
-                    case 2:
-                        expect(ev).toBe("complete");
-                        expect(typeof data.error).toBe("undefined");
-                        expect(data.ok).toBe(true);
-                        expect(data.loaded).toBe(18);
-                        expect(data.status).toBe(200);
-                        break;
-                    default:
-                        throw new Error("There should be exactly 2 steps");
-                }
-            })(sub);
-
-            expect(typeof sub.unsubscribe).toBe("function");
-            sub.unsubscribe();
-        });
-        it("should support requesting json", () => {
-            const Y = createSandbox();
-
-            const req = Y.request.json(mapFileUrl("fixtures/jsontext.json"));
+            const req = Y.request(mapFileUrl("fixtures/jsontext.json"));
 
             let step = 0;
             const sub = req.subscribe();
@@ -259,6 +172,127 @@ function Hub_es5_tests(describe, expect, baseUrl) {
                     default:
                         throw new Error("There should be exactly 3 steps");
                 }
+            })(sub);
+
+            expect(typeof sub.unsubscribe).toBe("function");
+            sub.unsubscribe();
+        });
+        it("should support requesting plain text", () => {
+            const Y = createSandbox();
+
+            const req = Y.request.text(mapFileUrl("fixtures/plaintext.txt"));
+
+            let step = 0;
+            const sub = req.subscribe();
+            Y.forEach(function (pair) {
+                step += 1;
+
+                const ev = pair[0];
+                const data = pair[1];
+
+                if (step === 1 && ev === "ok") {
+                    // xhr polyfill in Deno doesn't trigger "progress" events
+                    step = 2;
+                }
+
+                switch (step) {
+                    case 1:
+                        expect(ev).toBe("progress");
+                        expect(typeof data.error).toBe("undefined");
+                        expect(data.indeterminate).toBe(undefined);
+                        expect(data.progress).toBe(100);
+                        break;
+                    case 2:
+                        expect(ev).toBe("ok");
+                        expect(typeof data.error).toBe("undefined");
+                        expect(data.ok).toBe(true);
+                        expect(data.response).toBe("A plain text file\n");
+                        expect(data.status).toBe(200);
+                        break;
+                    case 3:
+                        expect(ev).toBe("complete");
+                        expect(typeof data.error).toBe("undefined");
+                        expect(data.ok).toBe(true);
+                        expect(data.loaded).toBe(18);
+                        expect(data.status).toBe(200);
+                        break;
+                    default:
+                        throw new Error("There should be exactly 3 steps");
+                }
+            })(sub);
+
+            expect(typeof sub.unsubscribe).toBe("function");
+            sub.unsubscribe();
+        });
+        it("[UNOFFICIAL sync] should support requesting text", () => {
+            const Y = createSandbox();
+
+            const req = Y.request.text(mapFileUrl("fixtures/plaintext.txt"), {
+                __UNOFFICIAL_DO_NOT_USE__: {
+                    sync: true,
+                },
+            });
+
+            let step = 0;
+            const sub = req.subscribe();
+            Y.forEach(function (pair) {
+                step += 1;
+
+                const ev = pair[0];
+                const data = pair[1];
+
+                if (step === 1 && ev === "ok") {
+                    // xhr polyfill in Deno doesn't trigger "progress" events
+                    step = 2;
+                }
+
+                switch (step) {
+                    case 1:
+                        expect(ev).toBe("progress");
+                        expect(typeof data.error).toBe("undefined");
+                        expect(data.indeterminate).toBe(undefined);
+                        expect(data.progress).toBe(100);
+                        break;
+                    case 2:
+                        expect(ev).toBe("ok");
+                        expect(typeof data.error).toBe("undefined");
+                        expect(data.ok).toBe(true);
+                        expect(data.response).toBe("A plain text file\n");
+                        expect(data.status).toBe(200);
+                        break;
+                    case 3:
+                        expect(ev).toBe("complete");
+                        expect(typeof data.error).toBe("undefined");
+                        expect(data.ok).toBe(true);
+                        expect(data.loaded).toBe(18);
+                        expect(data.status).toBe(200);
+                        break;
+                    default:
+                        throw new Error("There should be exactly 3 steps");
+                }
+            })(sub);
+
+            expect(typeof sub.unsubscribe).toBe("function");
+            sub.unsubscribe();
+        });
+        it("[UNOFFICIAL sync] should not support requesting anything other than text", () => {
+            const Y = createSandbox();
+
+            const req = Y.request(mapFileUrl("fixtures/jsontext.json"), {
+                __UNOFFICIAL_DO_NOT_USE__: {
+                    sync: true,
+                },
+            });
+
+            const sub = req.subscribe();
+            Y.forEach(function (pair) {
+                console.log("  ", pair);
+
+                const ev = pair[0];
+                const data = pair[1];
+
+                expect(ev).toBe("error");
+                expect(typeof data.error).not.toBe("undefined")
             })(sub);
 
             expect(typeof sub.unsubscribe).toBe("function");

@@ -1,7 +1,11 @@
 /* global define, module */
-/*! Hub v0.1.2 https://www.github.com/mfeineis/hubjs */
+/*! Hub v0.1.3 https://www.github.com/mfeineis/hubjs */
 /// Changelog
 /// =========
+/// * v0.1.3
+///     - `request` now defaults to `responseType: "json"` like `fetch` does
+///     - Replaced `request.json` with `request.text` to account for new json default
+///     - Fixed reported error order in `request` to give most specific reason of failure
 /// * v0.1.2
 ///     - Fixed bug in `request` where early return from subscription would yield a "noop" function
 ///     - Fixed docs for `request` subscription
@@ -342,8 +346,10 @@ function requestViaXHRExtension(sandboxApi, Y, _, undefined) {
         const headers = options.headers || {};
         const method = options.method || "GET";
         const params = options.params || {};
-        // options.responseType is "text" by default per spec
-        const responseType = options.responseType || "";
+        // options.responseType is "json" by default
+        const responseType = typeof options.responseType === "string"
+            ? options.responseType
+            : "json";
         const signal = options.signal || null;
         // options.sync is not part of the published API but it is convenient
         // for testing so it works for this implementation without official support
@@ -603,9 +609,9 @@ function requestViaXHRExtension(sandboxApi, Y, _, undefined) {
         return Object.freeze(api);
     };
 
-    request["json"] = function requestJson(url, options) {
+    request["text"] = function requestJson(url, options) {
         return request(url, mix({}, options, {
-            responseType: "json",
+            responseType: "",
         }));
     };
 

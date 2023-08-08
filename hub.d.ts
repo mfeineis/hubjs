@@ -66,7 +66,7 @@ interface HubSandbox {
     // Request
     readonly request: {
         <T = unknown>(url: string, options?: SandboxRequestOptions): SandboxRequest<T>;
-        readonly json: <T = unknown>(url: string, options?: SandboxRequestOptions) => SandboxRequest<T>;
+        readonly text: <T = unknown>(url: string, options?: SandboxRequestOptions) => SandboxRequest<T>;
     };
 
     // Callbag operators
