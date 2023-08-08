@@ -361,7 +361,7 @@ function requestViaXHRExtension(sandboxApi, Y, _, undefined) {
         let listeners = [];
 
         function determineError() {
-            return loadError || sendError || openError || undefined;
+            return loadError || openError || sendError || undefined;
         }
 
         function pump(fn, rawData) {
